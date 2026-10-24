@@ -1,0 +1,31 @@
+# docker compose up -d --build   ->  http://localhost:3000
+# Books are mounted READ-ONLY. Inside the app, add folders by their container path (e.g. /books/telegram).
+services:
+  backend:
+    build:
+      context: ./backend
+      args:
+        WITH_SEMANTIC: "0"
+    env_file: ./backend/.env.docker
+    environment:
+      ACADEMY_DATA_DIR: /data
+    volumes:
+      - academy-data:/data
+      # Windows (Docker Desktop): share drive D: in Settings > Resources > File sharing first.
+      - "D:/Telegram books:/books/telegram:ro"
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+    env_file: ./frontend/.env.docker
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on: [backend]
+    restart: unless-stopped
+
+volumes:
+  academy-data:

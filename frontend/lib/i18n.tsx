@@ -1,0 +1,266 @@
+"use client";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
+
+export type Lang = "en" | "ar";
+
+const en = {
+  appName: "Neurosurgery AI Academy",
+  owner: "Prof. Ali Kotb",
+  subtitle: "Evidence-Based Neurosurgery | Clinical Decision Support | Surgical Education | Research Updates",
+  nav_dashboard: "Dashboard",
+  nav_library: "My Neurosurgery Library",
+  nav_search: "Search my books",
+  nav_chat: "AI Neurosurgery Chat",
+  nav_approaches: "Surgical Approaches",
+  nav_mcq: "MCQ Generator",
+  nav_essay: "Short Essay Generator",
+  nav_viva: "Oral Board / Viva",
+  nav_cases: "Clinical Case Discussion",
+  nav_lecture: "Lecture Builder",
+  nav_evidence: "Research Evidence",
+  nav_saved: "Saved Questions",
+  nav_collection: "My Teaching Collection",
+  nav_settings: "Settings",
+  phase: "Phase",
+  ready: "Ready",
+  btn1: "Neurosurgery Knowledge & Teaching",
+  btn1_desc: "Grounded answers, MCQs, essays and viva practice drawn from your indexed textbooks.",
+  btn2: "Latest Neurosurgery Updates",
+  btn2_desc: "PubMed surveillance with structured appraisal and textbook comparison.",
+  arrives_in: "Arrives in phase",
+  ask_books: "Search your books",
+  ask_placeholder: "e.g. retrosigmoid versus translabyrinthine approach for large vestibular schwannoma",
+  search: "Search",
+  indexed_books: "Indexed documents",
+  pages: "Pages",
+  verified_meta: "Verified metadata",
+  added_week: "Added in 7 days",
+  last_scan: "Last scan",
+  recent_books: "Recently indexed",
+  no_books: "No documents indexed yet. Add a folder in the library to begin.",
+  go_library: "Open the library",
+  folders: "Library folders",
+  add_folder: "Add folder",
+  browse: "Browse",
+  folder_path: "Folder path on this computer",
+  scan_all: "Scan all folders",
+  scan_one: "Scan",
+  enabled: "Enabled",
+  rescan_force: "Re-extract everything",
+  cancel: "Cancel",
+  scanning: "Scanning",
+  documents: "Documents",
+  quality: "Quality report",
+  status: "Status",
+  title: "Title",
+  authors: "Authors",
+  edition: "Edition",
+  year: "Year",
+  publisher: "Publisher",
+  isbn: "ISBN",
+  save: "Save",
+  saved: "Saved",
+  verify_meta: "I have checked these details against the book",
+  metadata: "Bibliographic details",
+  source_of: "source",
+  unreachable: "Not reachable",
+  remove: "Remove",
+  remove_folder_confirm: "Remove this folder from the index? Files on disk are not touched.",
+  reindex: "Re-index",
+  open_original: "Open original",
+  view_passage: "View supporting passage",
+  copy_citation: "Copy citation",
+  copied: "Copied",
+  results_for: "results",
+  printed_embedded: "printed page from the book",
+  printed_inferred: "printed page inferred from headers/footers, spot-check it",
+  printed_none: "printed page unknown; PDF page given",
+  meta_unverified: "metadata not yet verified",
+  ocr_text: "OCR text: check the page image",
+  all_terms: "all terms",
+  some_terms: "some terms",
+  semantic: "semantic",
+  filter_books: "Limit to books",
+  all_books: "All books",
+  verified_only: "Verified books only",
+  expanded: "Searched as",
+  prev: "Previous page",
+  next: "Next page",
+  go_printed: "Go to printed page",
+  page_text: "Extracted text",
+  page_image: "Page image",
+  chapter: "Chapter",
+  section: "Section",
+  contents: "Contents",
+  backend_down: "The backend is not responding.",
+  empty_folders: "No folders yet. Add the folders where your books live, for example D:\\Telegram books.",
+  choose: "Use this folder",
+  up: "Up one level",
+  language: "العربية",
+  ocr_on: "OCR available",
+  ocr_off: "OCR not installed",
+  sem_on: "Semantic search on",
+  sem_off: "Keyword search (semantic off)",
+  notes: "Notes",
+  filter_status: "Status filter",
+  any: "Any",
+  find_doc: "Filter by title or file name",
+  duplicate_of: "duplicate of",
+  possible_duplicate: "possibly the same book as",
+  no_hits: "No supporting passage was found in your indexed books.",
+};
+
+type Dict = typeof en;
+
+const ar: Dict = {
+  appName: "أكاديمية جراحة المخ والأعصاب بالذكاء الاصطناعي",
+  owner: "أ.د. على قطب",
+  subtitle: "جراحة أعصاب مبنية على الدليل | دعم القرار السريري | التعليم الجراحي | مستجدات البحث",
+  nav_dashboard: "الرئيسية",
+  nav_library: "مكتبتي في جراحة الأعصاب",
+  nav_search: "البحث في كتبي",
+  nav_chat: "المحادثة الذكية",
+  nav_approaches: "المداخل الجراحية",
+  nav_mcq: "مولّد أسئلة MCQ",
+  nav_essay: "مولّد الأسئلة المقالية",
+  nav_viva: "الامتحان الشفهي",
+  nav_cases: "مناقشة الحالات",
+  nav_lecture: "إعداد المحاضرات",
+  nav_evidence: "الأدلة البحثية",
+  nav_saved: "الأسئلة المحفوظة",
+  nav_collection: "مجموعاتي التعليمية",
+  nav_settings: "الإعدادات",
+  phase: "المرحلة",
+  ready: "جاهز",
+  btn1: "المعرفة والتعليم في جراحة الأعصاب",
+  btn1_desc: "إجابات موثّقة وأسئلة MCQ ومقالية وتدريب شفهي مستمدّة من كتبك المفهرسة.",
+  btn2: "أحدث مستجدات جراحة الأعصاب",
+  btn2_desc: "متابعة PubMed مع تقييم منهجي ومقارنة بما في الكتب.",
+  arrives_in: "يتوفّر في المرحلة",
+  ask_books: "ابحث في كتبك",
+  ask_placeholder: "مثال: retrosigmoid مقابل translabyrinthine في vestibular schwannoma الكبير",
+  search: "بحث",
+  indexed_books: "المراجع المفهرسة",
+  pages: "الصفحات",
+  verified_meta: "بيانات موثّقة",
+  added_week: "أُضيفت خلال ٧ أيام",
+  last_scan: "آخر فحص",
+  recent_books: "أُضيفت مؤخراً",
+  no_books: "لا توجد مراجع مفهرسة بعد. أضف مجلداً من المكتبة للبدء.",
+  go_library: "فتح المكتبة",
+  folders: "مجلدات المكتبة",
+  add_folder: "إضافة مجلد",
+  browse: "استعراض",
+  folder_path: "مسار المجلد على هذا الجهاز",
+  scan_all: "فحص كل المجلدات",
+  scan_one: "فحص",
+  enabled: "مفعّل",
+  rescan_force: "إعادة الاستخلاص بالكامل",
+  cancel: "إلغاء",
+  scanning: "جارٍ الفحص",
+  documents: "المراجع",
+  quality: "تقرير الجودة",
+  status: "الحالة",
+  title: "العنوان",
+  authors: "المؤلفون",
+  edition: "الطبعة",
+  year: "السنة",
+  publisher: "الناشر",
+  isbn: "ISBN",
+  save: "حفظ",
+  saved: "تم الحفظ",
+  verify_meta: "راجعتُ هذه البيانات على الكتاب نفسه",
+  metadata: "البيانات الببليوغرافية",
+  source_of: "المصدر",
+  unreachable: "غير متاح",
+  remove: "إزالة",
+  remove_folder_confirm: "إزالة هذا المجلد من الفهرس؟ لن تُمسّ الملفات على القرص.",
+  reindex: "إعادة الفهرسة",
+  open_original: "فتح الأصل",
+  view_passage: "عرض الفقرة الداعمة",
+  copy_citation: "نسخ المرجع",
+  copied: "تم النسخ",
+  results_for: "نتيجة",
+  printed_embedded: "رقم الصفحة المطبوع من الكتاب",
+  printed_inferred: "رقم الصفحة مستنتج من الترويسة/التذييل — يُستحسن التحقق",
+  printed_none: "رقم الصفحة المطبوع غير معروف؛ ذُكر رقم صفحة PDF",
+  meta_unverified: "البيانات لم تُوثَّق بعد",
+  ocr_text: "نص مستخرج بـ OCR — راجِع صورة الصفحة",
+  all_terms: "كل الكلمات",
+  some_terms: "بعض الكلمات",
+  semantic: "دلالي",
+  filter_books: "حصر البحث في كتب",
+  all_books: "كل الكتب",
+  verified_only: "الكتب الموثّقة فقط",
+  expanded: "بُحث عنه بوصفه",
+  prev: "الصفحة السابقة",
+  next: "الصفحة التالية",
+  go_printed: "انتقل إلى الصفحة المطبوعة",
+  page_text: "النص المستخرج",
+  page_image: "صورة الصفحة",
+  chapter: "الفصل",
+  section: "القسم",
+  contents: "المحتويات",
+  backend_down: "الخادم الخلفي لا يستجيب.",
+  empty_folders: "لا توجد مجلدات بعد. أضف المجلدات التي تحوي كتبك، مثل D:\\Telegram books.",
+  choose: "استخدم هذا المجلد",
+  up: "المستوى الأعلى",
+  language: "English",
+  ocr_on: "OCR متاح",
+  ocr_off: "OCR غير مثبّت",
+  sem_on: "البحث الدلالي مفعّل",
+  sem_off: "بحث بالكلمات (الدلالي غير مفعّل)",
+  notes: "ملاحظات",
+  filter_status: "تصفية بالحالة",
+  any: "الكل",
+  find_doc: "تصفية بالعنوان أو اسم الملف",
+  duplicate_of: "نسخة مكررة من",
+  possible_duplicate: "قد يكون نفس كتاب",
+  no_hits: "لم يُعثر على فقرة داعمة في كتبك المفهرسة.",
+};
+
+export const statusLabel: Record<Lang, Record<string, string>> = {
+  en: { pending: "Pending", indexed: "Indexed", partial: "Partial text", duplicate: "Duplicate", missing: "File missing",
+        error: "Error", ocr_needed: "Needs OCR", skipped: "Skipped" },
+  ar: { pending: "قيد الانتظار", indexed: "مفهرس", partial: "نص جزئي", duplicate: "مكرر", missing: "الملف مفقود",
+        error: "خطأ", ocr_needed: "يحتاج OCR", skipped: "تم تخطيه" },
+};
+
+export const srcLabel: Record<Lang, Record<string, string>> = {
+  en: { pdf_metadata: "PDF metadata", front_matter: "title pages", filename: "file name", user: "entered by you" },
+  ar: { pdf_metadata: "بيانات PDF", front_matter: "صفحات العنوان", filename: "اسم الملف", user: "أدخلتَه أنت" },
+};
+
+const dicts = { en, ar };
+type Ctx = { lang: Lang; t: Dict; toggle: () => void };
+const I18nContext = createContext<Ctx>({ lang: "en", t: en, toggle: () => {} });
+
+export function I18nProvider({ children }: { children: React.ReactNode }) {
+  const [lang, setLang] = useState<Lang>("en");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("academy.lang");
+      if (saved === "ar" || saved === "en") setLang(saved);
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  }, [lang]);
+  const toggle = useCallback(() => {
+    setLang((l) => {
+      const next = l === "en" ? "ar" : "en";
+      try {
+        localStorage.setItem("academy.lang", next);
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+  return <I18nContext.Provider value={{ lang, t: dicts[lang], toggle }}>{children}</I18nContext.Provider>;
+}
+
+export const useI18n = () => useContext(I18nContext);
