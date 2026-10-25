@@ -110,6 +110,9 @@ export type Doc = {
   indexed_at: string | null;
   toc?: { level: number; title: string; start_page: number; end_page: number }[];
   exists_on_disk?: boolean;
+  source?: "local" | "gdrive";
+  web_link?: string | null;
+  uploaded?: boolean;
 };
 
 export type Folder = {
@@ -123,6 +126,8 @@ export type Folder = {
   indexed: number | null;
   errors: number | null;
   reachable: boolean;
+  source?: "local" | "gdrive";
+  web_link?: string | null;
 };
 
 export type Job = {
@@ -152,4 +157,67 @@ export type Stats = {
   new_publications: number | null;
 };
 
-export type Status = { version: string; ocr_available: boolean; semantic_enabled: boolean; active_job: number | null };
+export type Status = {
+  version: string;
+  ocr_available: boolean;
+  semantic_enabled: boolean;
+  active_job: number | null;
+  auto_indexing?: boolean;
+  auto_indexing_interval?: number;
+};
+
+export type Publication = {
+  id: number;
+  pmid: string | null;
+  pmcid: string | null;
+  doi: string | null;
+  source: string | null;
+  title: string;
+  authors: string | null;
+  journal: string | null;
+  pub_date: string | null;
+  pub_types: string[];
+  design: string | null;
+  level: number | null;
+  design_basis: string | null;
+  is_oa: number;
+  oa_pdf_url: string | null;
+  license: string | null;
+  abstract: string | null;
+  cited_by: number | null;
+  retracted: number;
+  reviewed: number;
+  saved: number;
+  library_path: string | null;
+  first_seen_at: string;
+  topics?: string[];
+  links: { pubmed: string | null; doi: string | null; pmc: string | null; europepmc: string | null };
+};
+
+export type Topic = {
+  id: number;
+  name: string;
+  query: string;
+  enabled: number;
+  builtin: number;
+  last_run_at: string | null;
+  total: number;
+  unreviewed: number | null;
+  last_status: string | null;
+  last_error: string | null;
+};
+
+export type SearchRun = {
+  id: number;
+  topic: string | null;
+  query: string;
+  window_from: string | null;
+  window_to: string | null;
+  source: string | null;
+  started_at: string;
+  finished_at: string | null;
+  status: string;
+  found: number | null;
+  new: number | null;
+  error: string | null;
+};

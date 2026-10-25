@@ -1,0 +1,29 @@
+# One-click cloud install (Render Blueprint). Render: New > Blueprint > choose this repository > Apply.
+# You are asked for one value: ACADEMY_UI_PASSWORD (the password for your site). See SETUP-CLOUD.md.
+services:
+  - type: web
+    name: neurosurgery-academy
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: frankfurt          # closest Render region to Egypt
+    plan: starter              # needed for a persistent disk; free instances lose the library at every restart
+    healthCheckPath: /healthz
+    autoDeploy: true
+    disk:
+      name: academy-data
+      mountPath: /data         # your uploaded books, the search index and settings
+      sizeGB: 10
+    envVars:
+      - key: ACADEMY_UI_PASSWORD
+        sync: false            # Render asks you to type it during setup
+      - key: ACADEMY_UI_USER
+        value: prof
+      - key: ACADEMY_REQUIRE_PASSWORD
+        value: "1"
+      - key: ACADEMY_DATA_DIR
+        value: /data
+      - key: ACADEMY_LOCAL_FOLDERS_ENABLED
+        value: "false"
+      - key: ACADEMY_OCR_LANGUAGE
+        value: eng+ara

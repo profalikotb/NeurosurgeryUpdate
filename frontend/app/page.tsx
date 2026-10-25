@@ -48,7 +48,8 @@ export default function Dashboard() {
 
       <section className="mt-6 grid gap-4 md:grid-cols-2">
         <ModulePanel title={t.btn1} desc={t.btn1_desc} phase={2} href="/search" readyLabel={t.nav_search} />
-        <ModulePanel title={t.btn2} desc={t.btn2_desc} phase={4} />
+        <ModulePanel title={t.btn2} desc={t.btn2_desc} href="/updates" readyLabel={t.open_updates}
+          note={stats && stats.new_publications ? `${fmtNum(stats.new_publications)} ${t.new_since}` : undefined} />
       </section>
 
       {err && <div className="mt-6"><ErrorNote msg={`${t.backend_down} ${err}`} /></div>}
@@ -96,7 +97,7 @@ export default function Dashboard() {
   );
 }
 
-function ModulePanel({ title, desc, phase, href, readyLabel }: { title: string; desc: string; phase: number; href?: string; readyLabel?: string }) {
+function ModulePanel({ title, desc, phase, href, readyLabel, note }: { title: string; desc: string; phase?: number; href?: string; readyLabel?: string; note?: string }) {
   const { t } = useI18n();
   return (
     <div className="panel flex min-w-0 flex-col border-s-4 border-s-deep p-6">
@@ -108,9 +109,12 @@ function ModulePanel({ title, desc, phase, href, readyLabel }: { title: string; 
             {readyLabel}
           </Link>
         )}
-        <span className="text-xs text-text-3">
-          {t.arrives_in} {phase}
-        </span>
+        {note && <span className="chip bg-amber-50 text-amber">{note}</span>}
+        {phase && (
+          <span className="text-xs text-text-3">
+            {t.arrives_in} {phase}
+          </span>
+        )}
       </div>
     </div>
   );

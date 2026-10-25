@@ -5,6 +5,7 @@ import { api, type Doc, type Folder, type Job } from "@/lib/api";
 import { docTitle, fmtDateTime, fmtNum, fmtSize } from "@/lib/format";
 import { statusLabel, useI18n } from "@/lib/i18n";
 import { ErrorNote, StatusChip } from "@/components/bits";
+import UploadBooks from "@/components/Upload";
 
 export default function LibraryPage() {
   const { t } = useI18n();
@@ -15,15 +16,23 @@ export default function LibraryPage() {
 
   const loadFolders = useCallback(() => api<Folder[]>("/folders").then(setFolders).catch((e) => setErr(e.message)), []);
 
-  // Resume watching a job that was started elsewhere (CLI, another tab).
+  // Pick up jobs started elsewhere: automatic indexing, the CLI, another tab.
+  const watchingId = job?.status === "running" ? job.id : null;
   useEffect(() => {
     loadFolders();
-    api<{ active: number | null }>("/jobs")
-      .then((r) => {
-        if (r.active) api<Job>(`/jobs/${r.active}`).then(setJob);
-      })
-      .catch(() => {});
   }, [loadFolders]);
+  useEffect(() => {
+    if (watchingId) return;
+    const look = () =>
+      api<{ active: number | null }>("/jobs")
+        .then((r) => {
+          if (r.active) api<Job>(`/jobs/${r.active}`).then(setJob);
+        })
+        .catch(() => {});
+    look();
+    const id = setInterval(look, 10000);
+    return () => clearInterval(id);
+  }, [watchingId]);
 
   useEffect(() => {
     if (!job || job.status !== "running") return;
@@ -53,6 +62,19 @@ export default function LibraryPage() {
   };
 
   const running = job?.status === "running";
+  const [uploadsOn, setUploadsOn] = useState(false);
+  const followUpload = () => {
+    setRefreshKey((k) => k + 1);
+    loadFolders();
+    api<{ active: number | null }>("/jobs")
+      .then((r) => {
+        if (r.active) api<Job>(`/jobs/${r.active}`).then(setJob);
+      })
+      .catch(() => {});
+  };
+  useEffect(() => {
+    api<{ uploads_enabled?: boolean }>("/status").then((s) => setUploadsOn(!!s.uploads_enabled)).catch(() => {});
+  }, []);
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
@@ -67,6 +89,11 @@ export default function LibraryPage() {
           </button>
         </div>
         {err && <div className="mt-4"><ErrorNote msg={err} /></div>}
+        {uploadsOn && (
+          <div className="mt-4">
+            <UploadBooks onUploaded={followUpload} />
+          </div>
+        )}
         {job && <JobPanel job={job} onCancel={() => api(`/jobs/${job.id}/cancel`, { method: "POST" }).catch(() => {})} />}
         <Folders folders={folders} onChange={loadFolders} disabled={running} onScan={(id) => scan(false, [id])} />
       </section>
@@ -121,11 +148,47 @@ function JobPanel({ job, onCancel }: { job: Job; onCancel: () => void }) {
   );
 }
 
+type DriveStatus = { configured: boolean; error: string | null; service_account_email: string | null; local_folders_enabled: boolean; uploads_enabled?: boolean };
+
 function Folders({ folders, onChange, disabled, onScan }: { folders: Folder[]; onChange: () => void; disabled: boolean; onScan: (id: number) => void }) {
   const { t, lang } = useI18n();
   const [path, setPath] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [browsing, setBrowsing] = useState(false);
+  const [drive, setDrive] = useState<DriveStatus | null>(null);
+  const [link, setLink] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    api<DriveStatus>("/gdrive/status").then(setDrive).catch(() => {});
+  }, []);
+
+  const addDrive = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null);
+    setBusy(true);
+    try {
+      await api("/gdrive/folders", { method: "POST", json: { link } });
+      setLink("");
+      onChange();
+    } catch (e2) {
+      setErr((e2 as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const copyEmail = async () => {
+    if (!drive?.service_account_email) return;
+    try {
+      await navigator.clipboard.writeText(drive.service_account_email);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked */
+    }
+  };
+  const showLocal = drive ? drive.local_folders_enabled : true;
 
   const add = async (e?: React.FormEvent, p = path) => {
     e?.preventDefault();
@@ -155,13 +218,17 @@ function Folders({ folders, onChange, disabled, onScan }: { folders: Folder[]; o
   return (
     <div className="panel mt-5 p-5">
       <h2 className="h2">{t.folders}</h2>
-      {folders.length === 0 && <p className="mt-2 text-sm text-text-2">{t.empty_folders}</p>}
+      {folders.length === 0 && (
+        <p className="mt-2 text-sm text-text-2">{showLocal ? t.empty_folders : drive?.uploads_enabled ? t.empty_uploads : t.empty_drive}</p>
+      )}
       <ul className="mt-3 divide-y divide-rule">
         {folders.map((f) => (
-          <li key={f.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
+          <li key={f.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:gap-4">
             <div className="min-w-0 flex-1">
               <p className="ltr truncate text-sm font-medium text-ink" dir="ltr" title={f.path}>
-                {f.path}
+                {f.source === "gdrive" ? (
+                  <a href={f.web_link || undefined} target="_blank" rel="noreferrer" className="hover:text-deep hover:underline">{f.label}</a>
+                ) : showLocal ? f.path : f.label}
               </p>
               <p className="mt-0.5 text-xs text-text-2">
                 {fmtNum(f.indexed || 0)} / {fmtNum(f.documents)} {t.documents.toLowerCase()}
@@ -171,6 +238,7 @@ function Folders({ folders, onChange, disabled, onScan }: { folders: Folder[]; o
                 {!f.reachable && <span className="ms-2 chip bg-danger-50 text-danger">{t.unreachable}</span>}
               </p>
             </div>
+            <div className="flex shrink-0 items-center gap-3">
             <label className="flex items-center gap-1.5 text-xs text-text-2">
               <input type="checkbox" className="h-4 w-4 accent-teal" checked={!!f.enabled} onChange={() => toggle(f)} disabled={disabled} />
               {t.enabled}
@@ -181,10 +249,33 @@ function Folders({ folders, onChange, disabled, onScan }: { folders: Folder[]; o
             <button className="btn-danger px-3 py-1 text-xs" disabled={disabled} onClick={() => remove(f)}>
               {t.remove}
             </button>
+            </div>
           </li>
         ))}
       </ul>
-      <form onSubmit={add} className="mt-4 flex flex-col gap-2 sm:flex-row">
+      {drive?.configured && (
+        <div className="mt-4 rounded-md border border-rule bg-surface p-4">
+          <h3 className="text-sm font-semibold text-ink">{t.drive_add_title}</h3>
+          <ol className="mt-2 list-decimal space-y-1 ps-5 text-sm text-text-2">
+            <li>{t.drive_step1}</li>
+            <li>
+              {t.drive_step2}{" "}
+              <button type="button" onClick={copyEmail} className="ltr break-all font-medium text-deep underline" dir="ltr">
+                {drive.service_account_email}
+              </button>{" "}
+              <span className="text-xs text-teal-600">{copied ? t.copied : ""}</span>
+            </li>
+            <li>{t.drive_step3}</li>
+          </ol>
+          <form onSubmit={addDrive} className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <input className="input ltr flex-1" dir="ltr" value={link} onChange={(e) => setLink(e.target.value)}
+              placeholder="https://drive.google.com/drive/folders/…" aria-label={t.drive_link} />
+            <button className="btn-primary" disabled={!link.trim() || busy}>{busy ? "…" : t.drive_add}</button>
+          </form>
+        </div>
+      )}
+      {drive && !drive.configured && !showLocal && !drive.uploads_enabled && <div className="mt-4"><ErrorNote msg={drive.error || t.drive_not_configured} /></div>}
+      {showLocal && <form onSubmit={add} className="mt-4 flex flex-col gap-2 sm:flex-row">
         <input className="input ltr flex-1" dir="ltr" value={path} onChange={(e) => setPath(e.target.value)} placeholder="D:\Telegram books\Notebooklm books" aria-label={t.folder_path} />
         <button type="button" className="btn-ghost" onClick={() => setBrowsing(true)}>
           {t.browse}
@@ -192,7 +283,7 @@ function Folders({ folders, onChange, disabled, onScan }: { folders: Folder[]; o
         <button className="btn-primary" disabled={!path.trim()}>
           {t.add_folder}
         </button>
-      </form>
+      </form>}
       {err && <div className="mt-3"><ErrorNote msg={err} /></div>}
       {browsing && <FolderBrowser onClose={() => setBrowsing(false)} onPick={(p) => (setBrowsing(false), add(undefined, p))} />}
     </div>

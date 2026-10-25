@@ -57,6 +57,16 @@ backend\.venv\Scripts\python.exe scripts\make_sample_library.py D:\AcademySample
 5. Spot-check one citation in any book whose page numbers are marked *inferred*.
 6. Optional: schedule `scripts\scheduled-scan.bat` daily in Task Scheduler so newly downloaded books are indexed automatically.
 
+## Easiest: one-click cloud (recommended for phone use)
+
+`render.yaml` + `Dockerfile` deploy the whole app as one password-protected website on Render. Books are
+uploaded from the phone (the iPhone picker reads Google Drive directly). Three steps: [SETUP-CLOUD.md](SETUP-CLOUD.md).
+
+## Cloud mode: books from Google Drive, no PC
+
+Optional add-on to the one-click cloud: the server reads a shared Google Drive folder (read-only) and indexes
+new books placed there automatically. Step by step: [docs/CLOUD_DRIVE.md](docs/CLOUD_DRIVE.md).
+
 ## Remote access via Vercel
 
 Deploy **only `frontend/`** (Root Directory = `frontend`); the backend stays on the PC and is reached through a

@@ -66,7 +66,7 @@ function Viewer() {
               {docTitle(doc)}
             </h1>
             <p className="ltr mt-1 truncate text-xs text-text-3" dir="ltr" title={doc.path}>
-              {doc.path}
+              {doc.source === "gdrive" ? `Google Drive · ${doc.filename}` : doc.path}
             </p>
           </div>
           <StatusChip status={doc.status} />
@@ -93,12 +93,29 @@ function Viewer() {
             {t.contents}
           </button>
         ) : null}
+        {doc?.uploaded && (
+          <button className="btn-danger" onClick={async () => {
+            if (!confirm(t.delete_book_confirm)) return;
+            try {
+              await api(`/library/upload/${doc.id}`, { method: "DELETE" });
+              router.push("/library");
+            } catch (e) {
+              setErr((e as Error).message);
+            }
+          }}>
+            {t.delete_book}
+          </button>
+        )}
         <span className="flex-1" />
-        {doc && doc.exists_on_disk && (
+        {doc && doc.web_link ? (
+          <a className="btn-primary" href={doc.web_link} target="_blank" rel="noreferrer">
+            {t.open_in_drive}
+          </a>
+        ) : doc && doc.exists_on_disk ? (
           <a className="btn-primary" href={originalFile(doc.id, doc.ext === ".pdf" ? pageIndex : undefined)} target="_blank" rel="noreferrer">
             {t.open_original}
           </a>
-        )}
+        ) : null}
       </div>
 
       {showToc && doc?.toc && (

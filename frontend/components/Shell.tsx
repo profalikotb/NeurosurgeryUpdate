@@ -7,19 +7,21 @@ import { useI18n } from "@/lib/i18n";
 
 type NavKey =
   | "nav_dashboard" | "nav_library" | "nav_search" | "nav_chat" | "nav_approaches" | "nav_mcq" | "nav_essay"
-  | "nav_viva" | "nav_cases" | "nav_lecture" | "nav_evidence" | "nav_saved" | "nav_collection" | "nav_settings";
+  | "nav_viva" | "nav_cases" | "nav_lecture" | "nav_evidence" | "nav_saved" | "nav_collection" | "nav_settings"
+  | "nav_updates";
 
 const NAV: { key: NavKey; href?: string; phase: number }[] = [
   { key: "nav_dashboard", href: "/", phase: 1 },
   { key: "nav_library", href: "/library", phase: 1 },
   { key: "nav_search", href: "/search", phase: 1 },
+  { key: "nav_updates", href: "/updates", phase: 1 },
+  { key: "nav_evidence", href: "/evidence", phase: 1 },
   { key: "nav_chat", phase: 2 },
   { key: "nav_mcq", phase: 2 },
   { key: "nav_essay", phase: 2 },
   { key: "nav_viva", phase: 2 },
   { key: "nav_approaches", phase: 3 },
   { key: "nav_cases", phase: 3 },
-  { key: "nav_evidence", phase: 4 },
   { key: "nav_lecture", phase: 5 },
   { key: "nav_saved", phase: 5 },
   { key: "nav_collection", phase: 5 },
@@ -53,7 +55,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         .then((s) => alive && (setStatus(s), setDown(null)))
         .catch((e: Error) => alive && setDown(e.message || "unreachable"));
     load();
-    const id = setInterval(load, 15000);
+    const id = setInterval(load, 10000);
     return () => {
       alive = false;
       clearInterval(id);
@@ -118,6 +120,12 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             </p>
             <p className="flex items-center gap-2">
               <Dot on={status.semantic_enabled} /> {status.semantic_enabled ? t.sem_on : t.sem_off}
+            </p>
+            <p className="flex items-center gap-2">
+              <Dot on={!!status.auto_indexing} />
+              {status.active_job ? (
+                <Link href="/library" className="underline decoration-white/30 hover:text-white">{t.indexing_now}</Link>
+              ) : status.auto_indexing ? t.auto_on : t.auto_off}
             </p>
             <p className="text-white/35">v{status.version}</p>
           </>

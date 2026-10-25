@@ -1,0 +1,10 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+pymupdf>=1.25,<2  # 2.x pulls in onnxruntime (~200 MB) that this project does not need
+python-docx>=1.1
+python-multipart>=0.0.9
+httpx>=0.27
+google-auth>=2.29  # Google Drive service-account sign-in (cloud mode)
+requests>=2.31

@@ -2,6 +2,7 @@
 // to /api/proxy?__path=<path> (a catch-all folder name like [...path] breaks GitHub's web uploader). The API token lives only in server env vars;
 // the browser talks to /api/backend/* and never sees it.
 import { NextRequest } from "next/server";
+import { checkBasicAuth, UNAUTHORIZED_HEADERS } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,6 +32,14 @@ async function proxy(req: NextRequest) {
     const path = raw.split("/").filter(Boolean).map((p) => decodeURIComponent(p));
     if (!path.length || path.some((p) => p === ".." || p === "." || p.includes("\\") || p.includes("/"))) return fail(400, "bad path");
 
+    // Uploads bypass the middleware (to stream large books), so the password is checked here instead.
+    if (path[0] === "library" && path[1] === "upload") {
+      const auth = checkBasicAuth(req.headers.get("authorization"));
+      if (auth !== "ok") {
+        return new Response("Authentication required", { status: auth === "setup" ? 503 : 401, headers: UNAUTHORIZED_HEADERS });
+      }
+    }
+
     const qs = params.toString();
     const url = `${BACKEND}/api/${path.map(encodeURIComponent).join("/")}${qs ? `?${qs}` : ""}`;
     const headers = new Headers({ "X-Academy-Token": TOKEN, accept: req.headers.get("accept") || "*/*" });
@@ -39,17 +48,23 @@ async function proxy(req: NextRequest) {
     const range = req.headers.get("range");
     if (range) headers.set("range", range);
     const hasBody = !["GET", "HEAD"].includes(req.method);
+    // Book uploads (PUT) are streamed straight through instead of being buffered in memory.
+    const streaming = req.method === "PUT" && !!req.body;
+    const len = req.headers.get("content-length");
+    if (streaming && len) headers.set("content-length", len);
 
     let upstream: Response;
     try {
       upstream = await fetch(url, {
         method: req.method,
         headers,
-        body: hasBody ? await req.arrayBuffer() : undefined,
+        body: streaming ? req.body : hasBody ? await req.arrayBuffer() : undefined,
         cache: "no-store",
         redirect: "manual",
-        signal: AbortSignal.timeout(55_000),
-      });
+        signal: AbortSignal.timeout(streaming ? 30 * 60_000 : 55_000),
+        // Required by Node's fetch when the request body is a stream.
+        ...(streaming ? { duplex: "half" } : {}),
+      } as RequestInit);
     } catch (e) {
       const why = e instanceof Error && e.name === "TimeoutError" ? "timed out" : "unreachable";
       return fail(502, `Backend ${why} at ${BACKEND}. Is the backend (and tunnel, if remote) running?`);
